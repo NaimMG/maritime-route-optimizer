@@ -15,6 +15,7 @@ data:
 graph:
   ports_filename: "data/external/world_ports.csv"
   max_edge_distance_km: 2000  # Max distance between connected ports
+  port_detection_radius_km: 50
   min_historical_routes: 5    # Min routes to create an edge
 
 model:
