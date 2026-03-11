@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Venv
+maritimeoptimizer/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (raw data ne va pas sur Git)
+data/raw/
+data/external/
+
+# OS
+.DS_Store
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Models (trop lourds pour Git)
+*.pt
+*.pkl
+*.h5
