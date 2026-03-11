@@ -3,9 +3,12 @@
 > End-to-end maritime route optimization using real AIS vessel tracking data, Graph Neural Networks, and A* pathfinding.
 
 [![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red)](https://pytorch.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com/)
-[![HuggingFace](https://img.shields.io/badge/Demo-HuggingFace%20Spaces-yellow)](https://huggingface.co/Chasston)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.10-red)](https://pytorch.org/)
+[![PyG](https://img.shields.io/badge/PyTorch_Geometric-2.7-orange)](https://pyg.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.135-green)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
+![Kepler.gl Map](docs/kepler_map_screenshot.png)
 
 ## 🎯 Problem
 
@@ -13,45 +16,67 @@ Given a departure port and a destination port, find the optimal maritime route t
 
 ## 🏗️ Architecture
 ```
-AIS Data (real vessel positions)
+Real AIS Data (NOAA Marine Cadastre, 2024)
         ↓
-  Data Pipeline (cleaning, filtering)
+  Data Pipeline — cleaning, filtering (76% noise removed)
         ↓
-  Feature Engineering (weather, currents, distance)
+  Feature Engineering — haversine distance, kinematics, temporal
         ↓
-  Graph Neural Network (dynamic edge cost prediction)
+  Port Graph — 67 nodes, 63 edges from 506 real vessel routes
         ↓
-  A* Pathfinding (optimal route search)
+  Graph Attention Network — dynamic edge cost prediction (MPS)
         ↓
-  FastAPI + Gradio Demo
+  A* Pathfinding — optimal route search using GNN costs
+        ↓
+  FastAPI REST API + Kepler.gl Interactive Map
 ```
+
+## 📊 Results
+
+| Metric | Value |
+|--------|-------|
+| AIS records processed | 21.8M raw → 1.77M clean |
+| Unique vessels | 2,565 (cargo, tanker, passenger) |
+| Port graph | 67 ports, 63 routes |
+| GNN training loss | 0.230 → 0.022 (−90%) |
+| API response time | < 100ms |
 
 ## 📦 Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Data processing | Pandas, GeoPandas |
-| ML Model | PyTorch, PyTorch Geometric (GNN) |
-| Optimization | Custom A* with dynamic costs |
-| API | FastAPI |
-| Demo | Gradio → HuggingFace Spaces |
+| Data processing | Pandas, GeoPandas, PyArrow |
+| ML Model | PyTorch 2.10, PyTorch Geometric 2.7 (GAT) |
+| Optimization | Custom A* with GNN-predicted costs |
+| API | FastAPI + Uvicorn |
+| Visualization | Kepler.gl |
 
 ## 📁 Project Structure
 ```
 maritime-route-optimizer/
 ├── data/
-│   ├── raw/          # AIS raw data (not versioned)
-│   ├── processed/    # Cleaned datasets
-│   └── external/     # Weather, ports reference data
-├── notebooks/        # Exploratory analysis
+│   ├── raw/          # AIS GeoParquet files (not versioned)
+│   ├── processed/    # Cleaned datasets, graph, model
+│   └── external/     # World ports reference (NGA/NOAA)
+├── notebooks/
+│   ├── 01_eda_ais.ipynb          # Exploratory data analysis
+│   └── 02_kepler_visualization.ipynb  # Interactive map
 ├── src/
-│   ├── data/         # Ingestion & cleaning pipeline
-│   ├── features/     # Feature engineering
-│   ├── models/       # GNN + A* optimizer
-│   └── api/          # FastAPI endpoints
-├── app/              # Gradio interface
-├── tests/            # Unit tests
-└── configs/          # YAML configuration files
+│   ├── data/
+│   │   ├── download.py    # AIS data downloader
+│   │   └── pipeline.py    # Cleaning pipeline
+│   ├── features/
+│   │   └── engineer.py    # Feature engineering
+│   ├── models/
+│   │   ├── graph_builder.py  # Port graph construction
+│   │   ├── gnn.py            # Graph Attention Network
+│   │   └── optimizer.py      # A* route optimizer
+│   └── api/
+│       └── main.py        # FastAPI endpoints
+├── app/               # Kepler.gl visualization
+├── configs/
+│   └── config.yaml    # Project configuration
+└── docs/              # Screenshots and assets
 ```
 
 ## 🚀 Getting Started
@@ -66,23 +91,62 @@ source maritimeoptimizer/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+pip install torch torchvision torchaudio
+pip install torch-geometric
+
+# Download AIS data (3 days, ~683MB)
+python3 src/data/download.py
+
+# Run full pipeline
+python3 src/data/pipeline.py
+python3 -m src.features.engineer
+python3 -m src.models.graph_builder
+python3 -m src.models.gnn
+
+# Start API
+python3 -m uvicorn src.api.main:app --reload --port 8000
+```
+
+## 🔌 API Usage
+```bash
+# Get all available ports
+curl http://localhost:8000/ports
+
+# Optimize a route
+curl -X POST http://localhost:8000/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"origin": "Los Angeles", "destination": "Long Beach"}'
+```
+
+**Response:**
+```json
+{
+  "found": true,
+  "origin": "Los Angeles",
+  "destination": "Long Beach",
+  "path": ["Los Angeles", "Long Beach"],
+  "total_distance_km": 6.4,
+  "total_cost": 0.1676,
+  "n_hops": 1
+}
 ```
 
 ## 📊 Data
 
-This project uses real **AIS (Automatic Identification System)** data — the GPS-like tracking system mandatory on all vessels over 300 tons. Data sourced from [AISHub](https://www.aishub.net/) / [Marine Cadastre](https://marinecadastre.gov/).
+Real **AIS (Automatic Identification System)** data from [NOAA Marine Cadastre](https://marinecadastre.gov/) — the official US Coast Guard vessel tracking system. Data is in GeoParquet format, covering US coastal waters for January 2024.
 
 ## 🔬 Methodology
 
-1. **EDA** — Explore vessel trajectories, port density, seasonal patterns
-2. **Graph construction** — Ports as nodes, historical routes as edges
-3. **GNN training** — Learn dynamic edge costs (weather impact, traffic, fuel)
-4. **Route optimization** — A* search using GNN-predicted costs
-5. **Evaluation** — Compare against great-circle baseline and real routes
+1. **EDA** — Explore 7.3M daily AIS messages, identify noise (76% stopped vessels)
+2. **Pipeline** — Filter by speed, vessel type, trajectory length
+3. **Graph construction** — Detect ports from trajectory endpoints (50km radius)
+4. **GNN training** — Graph Attention Network learns dynamic edge costs
+5. **Route optimization** — A* search using GNN-predicted costs
+6. **Visualization** — Kepler.gl interactive map with 4 data layers
 
 ## 👤 Author
 
 **Naim** — [GitHub](https://github.com/NaimMG) · [HuggingFace](https://huggingface.co/Chasston)
 
 ---
-*Project built step by step as a real-world data science portfolio piece.*
+*Built step by step as a real-world data science portfolio project.*
