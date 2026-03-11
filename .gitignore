@@ -30,3 +30,4 @@ data/external/
 *.pt
 *.pkl
 *.h5
+app/maritime_routes.html
