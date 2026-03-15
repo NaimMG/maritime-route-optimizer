@@ -22,9 +22,9 @@ Real AIS Data (NOAA Marine Cadastre, 2024)
         ↓
   Feature Engineering — haversine distance, kinematics, temporal
         ↓
-  Port Graph — 67 nodes, 63 edges from 506 real vessel routes
+  Port Graph — 431 nodes, 1328 edges from 18,524 real vessel routes
         ↓
-  Graph Attention Network — dynamic edge cost prediction (MPS)
+  Graph Attention Network — dynamic edge cost prediction (MPS + Tesla T4)
         ↓
   A* Pathfinding — optimal route search using GNN costs
         ↓
@@ -33,13 +33,14 @@ Real AIS Data (NOAA Marine Cadastre, 2024)
 
 ## 📊 Results
 
-| Metric | Value |
-|--------|-------|
-| AIS records processed | 21.8M raw → 1.77M clean |
-| Unique vessels | 2,565 (cargo, tanker, passenger) |
-| Port graph | 67 ports, 63 routes |
-| GNN training loss | 0.230 → 0.022 (−90%) |
-| API response time | < 100ms |
+| Metric | Local v1 | Colab v3 |
+|--------|----------|----------|
+| AIS records processed | 21.8M → 1.77M | 35M → 12M |
+| Unique vessels | 2,565 | 6,850 |
+| Port graph | 67 ports, 63 edges | 431 ports, 1328 edges |
+| Routes learned | 506 | 18,524 |
+| GNN training loss | 0.022 | 0.019 (Tesla T4) |
+| API response time | < 100ms | < 100ms |
 
 ## 📦 Stack
 
@@ -59,8 +60,9 @@ maritime-route-optimizer/
 │   ├── processed/    # Cleaned datasets, graph, model
 │   └── external/     # World ports reference (NGA/NOAA)
 ├── notebooks/
-│   ├── 01_eda_ais.ipynb          # Exploratory data analysis
-│   └── 02_kepler_visualization.ipynb  # Interactive map
+│   ├── 01_eda_ais.ipynb               # Exploratory data analysis
+│   ├── 02_kepler_visualization.ipynb  # Interactive map (Kepler.gl)
+│   └── 03_colab_scaling.ipynb         # Scaling on Google Colab + T4 GPU
 ├── src/
 │   ├── data/
 │   │   ├── download.py    # AIS data downloader
@@ -133,7 +135,8 @@ curl -X POST http://localhost:8000/optimize \
 
 ## 📊 Data
 
-Real **AIS (Automatic Identification System)** data from [NOAA Marine Cadastre](https://marinecadastre.gov/) — the official US Coast Guard vessel tracking system. Data is in GeoParquet format, covering US coastal waters for January 2024.
+Real **AIS (Automatic Identification System)** data from [NOAA Marine Cadastre](https://marinecadastre.gov/) — the official US Coast Guard vessel tracking system. Data is in GeoParquet format, covering US coastal waters for January, April and July 2024 (45 days, ~10GB).
+Scaled training performed on Google Colab with Tesla T4 GPU.
 
 ## 🔬 Methodology
 
