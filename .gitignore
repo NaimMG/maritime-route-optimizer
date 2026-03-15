@@ -31,3 +31,4 @@ data/external/
 *.pkl
 *.h5
 app/maritime_routes.html
+data/processed/
